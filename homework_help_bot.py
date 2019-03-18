@@ -1,6 +1,7 @@
 #Refer to echobot2: https://github.com/python-telegram-bot/python-telegram-bot/blob/master/examples/echobot2.py
 import logging
-import sqlite3
+
+from pymongo import MongoClient
 
 import telegram
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
@@ -46,6 +47,16 @@ def error(update, context):
 
 def main():
     print('Program started!')
+
+    # Create MongoDB instance: default host and port are localhost and 27017
+    client = MongoClient()
+    print('MongoDB instance is created!')
+    
+    # Create database
+    db = client['homework_help']
+    # Create user collection
+    db_users = db.db_users
+    print("First article key is: {}".format(result.inserted_id))
 
     updater = Updater(token=token, use_context=True)
     print('Bot is created!')
