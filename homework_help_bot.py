@@ -1,4 +1,5 @@
 #Refer to echobot2: https://github.com/python-telegram-bot/python-telegram-bot/blob/master/examples/echobot2.py
+from datetime import datetime
 import logging
 
 from pymongo import MongoClient
@@ -28,6 +29,9 @@ def ask(update, context):
 def ask_text(update, context):
     """Send a message when user asks a question (text format)."""
     update.message.reply_text(f"Your question is: {update.message.text}\nIt is awaiting reply!")
+    question = get_question_document(update.message.text)
+    print(f"Insert question document: {question}")
+    question_collection.insert_one(question)
 
 def register_user(update, context):
     """Send a message and request for user's contact (and location) when the command /register is issued."""
@@ -45,6 +49,14 @@ def error(update, context):
     """Log Errors caused by Updates."""
     logger.warning(f'Update {update} caused error {context.error}')
 
+def get_question_document(question):
+    """Convert question to document"""
+    question_document = {
+        "question": question,
+        "created_at": datetime.utcnow()
+    }
+    return question_document
+
 def main():
     print('Program started!')
 
@@ -53,10 +65,13 @@ def main():
     print('MongoDB instance is created!')
     
     # Create database
-    db = client['homework_help']
-    # Create user collection
-    db_users = db.db_users
-    print("First article key is: {}".format(result.inserted_id))
+    db = client.homework_help
+    print('homework_help database is created!')
+    # Create user, tutor and question collection
+    users_collection = db.users_collection
+    tutor_collection = db.tutor_collection
+    question_collection = db.question_collection
+    print('user, tutor and question collections are created!')
 
     updater = Updater(token=token, use_context=True)
     print('Bot is created!')
