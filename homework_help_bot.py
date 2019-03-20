@@ -14,9 +14,32 @@ logger = logging.getLogger(__name__)
 
 token = '837770119:AAEmP97SuF0moJezC0jipSHz5Uy-CXqNNoI'
 
+# Create MongoDB instance: default host and port are localhost and 27017
+client = MongoClient()
+print('MongoDB instance is created!')
+
+# Create database
+db = client.homework_help
+print('homework_help database is created!')
+# Create user, tutor and question collection
+users_collection = db.users_collection
+tutor_collection = db.tutor_collection
+question_collection = db.question_collection
+print('user, tutor and question collections are created!')
+
+#TODO: refactor proccessing of user details
 def start(update, context):
-    """Send a message when the command /start is issued."""
+    """on /start command: Welcomes user, gets user details"""
     update.message.reply_text("Welcome to sgHomeworkHelp!")
+    get_user_details(update.message.from_user)
+    update.message.reply_text(f"Hi, {username}!")
+
+def get_user_details(user):
+    """Extracts user details from User object"""
+    global user_id, username
+    user_id = user.id
+    username = user.full_name
+    print(f"Processed user: {user_id} {username}")
 
 def help(update, context):
     """Send a message when the command /help is issued."""
@@ -26,12 +49,20 @@ def ask(update, context):
     """Send a message when the command /ask is issued."""
     update.message.reply_text("/ask was entered as a command!\nWhat's your question?")
 
+#TODO: refactor username
 def ask_text(update, context):
-    """Send a message when user asks a question (text format)."""
-    update.message.reply_text(f"Your question is: {update.message.text}\nIt is awaiting reply!")
-    question = get_question_document(update.message.text)
-    print(f"Insert question document: {question}")
-    question_collection.insert_one(question)
+    """Send a message when user asks a question (text format). NOTE: both username and tutorname are the same (for testing)"""
+    question = update.message.text
+    username = f"{update.message.from_user.first_name} {update.message.from_user.last_name}"
+    update.message.reply_text(f"Hi {username}, your question is: {question}\nIt is awaiting reply!")
+    question_document = get_question_document(question, username)
+    print(f"Insert question document: {question_document}")
+    question_insert_result = question_collection.insert_one(question_document)
+    print(f"Is insert question operation acknowledged? : {question_insert_result.acknowledged}")
+
+def answer(update, context):
+    """Send a message when the command /answer is issued."""
+    update.message.reply_text("/answer was entered as a command!\nHere's a question for you:")
 
 def register_user(update, context):
     """Send a message and request for user's contact (and location) when the command /register is issued."""
@@ -49,29 +80,18 @@ def error(update, context):
     """Log Errors caused by Updates."""
     logger.warning(f'Update {update} caused error {context.error}')
 
-def get_question_document(question):
-    """Convert question to document"""
+def get_question_document(question, username):
+    """Convert question to document. NOTE: datetime is in utc format, username and tutorname are the same"""
     question_document = {
         "question": question,
+        "username": username,
+        "tutorname": username,
         "created_at": datetime.utcnow()
     }
     return question_document
 
 def main():
     print('Program started!')
-
-    # Create MongoDB instance: default host and port are localhost and 27017
-    client = MongoClient()
-    print('MongoDB instance is created!')
-    
-    # Create database
-    db = client.homework_help
-    print('homework_help database is created!')
-    # Create user, tutor and question collection
-    users_collection = db.users_collection
-    tutor_collection = db.tutor_collection
-    question_collection = db.question_collection
-    print('user, tutor and question collections are created!')
 
     updater = Updater(token=token, use_context=True)
     print('Bot is created!')
