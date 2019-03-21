@@ -27,19 +27,43 @@ tutor_collection = db.tutor_collection
 question_collection = db.question_collection
 print('user, tutor and question collections are created!')
 
-#TODO: refactor proccessing of user details
 def start(update, context):
     """on /start command: Welcomes user, gets user details"""
     update.message.reply_text("Welcome to sgHomeworkHelp!")
-    get_user_details(update.message.from_user)
-    update.message.reply_text(f"Hi, {username}!")
+    user = update.message.from_user
+    get_user_details(user)
+    update.message.reply_text(f"Hi, {user.full_name}!")
 
 def get_user_details(user):
-    """Extracts user details from User object"""
-    global user_id, username
+    """Gets user details from User object"""
     user_id = user.id
     username = user.full_name
-    print(f"Processed user: {user_id} {username}")
+    print(f"Got user details: {user_id} {username}")
+
+    user_document = get_user_document(user_id)
+
+    if not user_document:
+        create_user_document(user_id, username)
+    else:
+        update_user_document(user_id, "start")
+
+def create_user_document(user_id, username):
+    """Creates user document in user collection"""
+    user_document = {
+        "user_id": user_id,
+        "username": username,
+        "user_state": "START",
+        "created_at": datetime.utcnow()
+    }
+    users_collection.insert_one(user_document)
+    print(f"Inserted user into user collection: {user_document}")
+
+def get_user_document(user_id):
+    """Tries to get user document from user collection; if it fails returns None"""
+    return users_collection.find_one({"user_id": user_id})
+
+def update_user_document(user_id, user_state):
+    """Updates user_state in user document"""
 
 def help(update, context):
     """Send a message when the command /help is issued."""
@@ -49,16 +73,29 @@ def ask(update, context):
     """Send a message when the command /ask is issued."""
     update.message.reply_text("/ask was entered as a command!\nWhat's your question?")
 
-#TODO: refactor username
-def ask_text(update, context):
-    """Send a message when user asks a question (text format). NOTE: both username and tutorname are the same (for testing)"""
+#NOTE: both username and tutorname are the same (for testing)
+def ask_text(update, context, args):
+    """after /ask command: Sends a message when user asks a question (text format)."""
+    user = update.message.from_user
+    user_id = user.id
+    username = user.full_name
     question = update.message.text
-    username = f"{update.message.from_user.first_name} {update.message.from_user.last_name}"
     update.message.reply_text(f"Hi {username}, your question is: {question}\nIt is awaiting reply!")
-    question_document = get_question_document(question, username)
-    print(f"Insert question document: {question_document}")
-    question_insert_result = question_collection.insert_one(question_document)
-    print(f"Is insert question operation acknowledged? : {question_insert_result.acknowledged}")
+    create_question_document(question, user_id, username)
+
+def create_question_document(question, user_id, username):
+    """Creates question document in question collection"""
+    question_document = {
+        "question": question,
+        "user_id": user_id,
+        "username": username,
+        "tutor_id": user_id,
+        "tutorname": username,
+        "is_answered": "false",
+        "created_at": datetime.utcnow()
+    }
+    question_collection.insert_one(question_document)
+    print(f"Inserted question into question collection: {question_document}")
 
 def answer(update, context):
     """Send a message when the command /answer is issued."""
@@ -79,16 +116,6 @@ def register_user(update, context):
 def error(update, context):
     """Log Errors caused by Updates."""
     logger.warning(f'Update {update} caused error {context.error}')
-
-def get_question_document(question, username):
-    """Convert question to document. NOTE: datetime is in utc format, username and tutorname are the same"""
-    question_document = {
-        "question": question,
-        "username": username,
-        "tutorname": username,
-        "created_at": datetime.utcnow()
-    }
-    return question_document
 
 def main():
     print('Program started!')
