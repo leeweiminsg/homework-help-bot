@@ -8,7 +8,7 @@ from telegram import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMa
 from telegram.ext import Updater, ConversationHandler, CommandHandler, MessageHandler, Filters, CallbackQueryHandler
 
 # Conversation states
-SELECT, ASK = range(2)
+SELECT, ASK, ANSWER, GET_ANSWER = range(4)
 
 # Enable logging to handle uncaught exceptions
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -39,8 +39,9 @@ def start(update, context):
 
     start_message = f"Hi, {user.full_name}!\nPlease select an action:"
     start_keyboard = InlineKeyboardMarkup(
-        [[InlineKeyboardButton(
-            "Ask a question", callback_data="ASK")]]
+        [[InlineKeyboardButton("Ask a question", callback_data="ASK")],
+         [InlineKeyboardButton("Answer question", callback_data="ANSWER")],
+         [InlineKeyboardButton("Get answer", callback_data="GET_ANSWER")]]
     )
 
     update.message.reply_text(
@@ -52,11 +53,20 @@ def start(update, context):
 def select(update, context):
     query = update.callback_query
     choice = query.data
+    user_id = query.from_user.id
+
+    print(f"User has selected {choice}")
 
     if choice == "ASK":
         query.edit_message_text(f"Please enter your question:")
-        print("User has selected ASK")
         return ASK
+    elif choice == "ANSWER":
+        question = get_question_document(user_id)["question"]
+        query.edit_message_text(
+            f"Here is a question for you:\n\n{question}\n\nPlease answer it:")
+        return ANSWER
+    elif choice == "GET_ANSWER":
+        query.edit_message_text(f"Here is your answer:\n{get_answer(user_id)}")
 
 
 def get_user_details(user):
@@ -86,9 +96,8 @@ def get_user_document(user_id):
     """Tries to get user document from user collection; if it fails returns None"""
     return users_collection.find_one({"user_id": user_id})
 
+
 # TODO: Update help command
-
-
 def help(update, context):
     """Send a message when the command /help is issued."""
     update.message.reply_text(
@@ -103,17 +112,39 @@ def ask(update, context):
     user_id = user.id
     username = user.full_name
     question = update.message.text
-    update.message.reply_text(
-        f"Hi {username}, your question is: {question}\nIt is awaiting reply!")
+
     create_question_document(question, user_id, username)
 
-    return ConversationHandler.Start
+    update.message.reply_text(
+        f"Hi {username}, your question is: {question}\nIt is awaiting reply!")
+
+    return ConversationHandler.END
+
+
+def answer(update, context):
+    """Collects the answer (text format)"""
+    user = update.message.from_user
+    user_id = user.id
+    username = user.full_name
+    answer = update.message.text
+
+    update_question_document(answer, user_id)
+
+    update.message.reply_text(
+        f"Hi {username}, your answer is: {answer}\nIt has been sent!")
+
+    return ConversationHandler.END
+
+
+def get_answer(user_id):
+    return get_question_document(user_id)["answer"]
 
 
 def create_question_document(question, user_id, username):
     """Creates question document in question collection"""
     question_document = {
         "question": question,
+        "answer": "",
         "user_id": user_id,
         "username": username,
         "tutor_id": user_id,
@@ -123,6 +154,19 @@ def create_question_document(question, user_id, username):
     }
     question_collection.insert_one(question_document)
     print(f"Inserted question into question collection: {question_document}")
+
+
+# TODO: seperate tutor_id and user_id
+def get_question_document(tutor_id):
+    """Creates question document in question collection"""
+    return question_collection.find_one({"tutor_id": tutor_id})
+
+
+def update_question_document(answer, tutor_id):
+    """Updates answer in question document in question collection"""
+    question_collection.update_one({"tutor_id": tutor_id}, {
+                                   "$set": {"answer": answer, }})
+    print(f"Updated answer in question collection with tutor_id: {tutor_id}")
 
 
 def error(update, context):
@@ -145,7 +189,9 @@ def main():
         [CommandHandler('start', start)],
         {
             SELECT: [CallbackQueryHandler(select)],
-            ASK: [MessageHandler(Filters.text, ask)]
+            ASK: [MessageHandler(Filters.text, ask)],
+            ANSWER: [MessageHandler(Filters.text, answer)],
+            GET_ANSWER: [CommandHandler('get_answer', get_answer)]
         },
         [CommandHandler('help', help)],
     )
