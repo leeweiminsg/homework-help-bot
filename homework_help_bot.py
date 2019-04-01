@@ -66,7 +66,10 @@ def select(update, context):
             f"Here is a question for you:\n\n{question}\n\nPlease answer it:")
         return ANSWER
     elif choice == "GET_ANSWER":
-        query.edit_message_text(f"Here is your answer:\n{get_answer(user_id)}")
+        query.edit_message_text(
+            f"You have asked the question: {get_question(user_id)} Here is your answer:\n{get_answer(user_id)}\
+            Type /start to return to main menu")
+        return ConversationHandler.END
 
 
 def get_user_details(user):
@@ -116,7 +119,7 @@ def ask(update, context):
     create_question_document(question, user_id, username)
 
     update.message.reply_text(
-        f"Hi {username}, your question is: {question}\nIt is awaiting reply!")
+        f"Hi {username}, your question is: {question}\nIt is awaiting reply! Type /start to return to main menu")
 
     return ConversationHandler.END
 
@@ -131,9 +134,13 @@ def answer(update, context):
     update_question_document(answer, user_id)
 
     update.message.reply_text(
-        f"Hi {username}, your answer is: {answer}\nIt has been sent!")
+        f"Hi {username}, your answer is: {answer}\nIt has been sent! Type /start to return to main menu")
 
     return ConversationHandler.END
+
+
+def get_question(user_id):
+    return get_question_document(user_id)["question"]
 
 
 def get_answer(user_id):
