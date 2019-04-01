@@ -1,4 +1,3 @@
-# Refer to echobot2: https://github.com/python-telegram-bot/python-telegram-bot/blob/master/examples/echobot2.py
 from datetime import datetime
 import logging
 
@@ -32,12 +31,11 @@ print('user, tutor and question collections are created!')
 
 
 def start(update, context):
-    """on /start command: Welcomes user, gets user details"""
-    update.message.reply_text("Welcome to sgHomeworkHelp!")
+    """on /start command: Welcomes user, gets user details and displays start menu"""
     user = update.message.from_user
     get_user_details(user)
 
-    start_message = f"Hi, {user.full_name}!\nPlease select an action:"
+    start_message = f"Hi {user.full_name}, I'm sgHomeworkHelp_Bot!\n\nPlease select an action:"
     start_keyboard = InlineKeyboardMarkup(
         [[InlineKeyboardButton("Ask a question", callback_data="ASK")],
          [InlineKeyboardButton("Answer question", callback_data="ANSWER")],
@@ -55,8 +53,6 @@ def select(update, context):
     choice = query.data
     user_id = query.from_user.id
 
-    print(f"User has selected {choice}")
-
     if choice == "ASK":
         query.edit_message_text(f"Please enter your question:")
         return ASK
@@ -67,8 +63,8 @@ def select(update, context):
         return ANSWER
     elif choice == "GET_ANSWER":
         query.edit_message_text(
-            f"You have asked the question: {get_question(user_id)} Here is your answer:\n{get_answer(user_id)}\
-            Type /start to return to main menu")
+            f"You have asked the question:\n\n{get_question(user_id)}\n\nHere is your answer:\n\n{get_answer(user_id)}\n\nIt was answered by: {get_answerer(user_id)}")
+        start(update, context)
         return ConversationHandler.END
 
 
@@ -78,9 +74,7 @@ def get_user_details(user):
     username = user.full_name
     print(f"Got user details: {user_id} {username}")
 
-    user_document = get_user_document(user_id)
-
-    if not user_document:
+    if not get_user_document(user_id):
         create_user_document(user_id, username)
 
 
@@ -106,9 +100,8 @@ def help(update, context):
     update.message.reply_text(
         '/help was entered as a command!\nWhat do you need help with?')
 
+
 # NOTE: both username and tutorname are the same (for testing)
-
-
 def ask(update, context):
     """Sends a message when user asks a question (text format)."""
     user = update.message.from_user
@@ -119,7 +112,9 @@ def ask(update, context):
     create_question_document(question, user_id, username)
 
     update.message.reply_text(
-        f"Hi {username}, your question is: {question}\nIt is awaiting reply! Type /start to return to main menu")
+        f"You have asked the question: {question}\n\nIt has been sent!")
+
+    start(update, context)
 
     return ConversationHandler.END
 
@@ -128,13 +123,14 @@ def answer(update, context):
     """Collects the answer (text format)"""
     user = update.message.from_user
     user_id = user.id
-    username = user.full_name
     answer = update.message.text
 
     update_question_document(answer, user_id)
 
     update.message.reply_text(
-        f"Hi {username}, your answer is: {answer}\nIt has been sent! Type /start to return to main menu")
+        f"Your have answered: {answer}\n\nIt has been sent!")
+
+    start(update, context)
 
     return ConversationHandler.END
 
@@ -145,6 +141,10 @@ def get_question(user_id):
 
 def get_answer(user_id):
     return get_question_document(user_id)["answer"]
+
+
+def get_answerer(user_id):
+    return get_question_document(user_id)["tutorname"]
 
 
 def create_question_document(question, user_id, username):
@@ -182,14 +182,10 @@ def error(update, context):
 
 
 def main():
-    print('Program started!')
-
     updater = Updater(token=token, use_context=True)
-    print('Bot is created!')
 
     # Get the dispatcher to register handlers
     dp = updater.dispatcher
-    print('Dispatcher is created!')
 
     # Use conversation handler to handle states
     conversation_handler = ConversationHandler(
@@ -205,13 +201,11 @@ def main():
 
     dp.add_handler(conversation_handler)
 
-    # log all errors
+    # Log all errors
     dp.add_error_handler(error)
-    print('Error handler is added to dispatcher!')
 
     # Start the Bot
     updater.start_polling()
-    print('Bot is started!')
 
     # Run the bot until you press Ctrl-C or the process receives SIGINT,
     # SIGTERM or SIGABRT. This should be used most of the time, since
