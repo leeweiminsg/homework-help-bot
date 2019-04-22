@@ -1,13 +1,12 @@
-from datetime import datetime
 import logging
-
-from pymongo import MongoClient
 
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup
 from telegram.ext import Updater, ConversationHandler, CommandHandler, MessageHandler, Filters, CallbackQueryHandler
 
+from database import get_user_document, create_user_document, get_question, get_unanswered_question, get_answered_question, create_question_document, update_question_document, delete_question_document
+
 # Conversation states
-SELECT, ASK, ANSWER, GET_ANSWER = range(4)
+SELECT, ASK, ANSWER = range(3)
 
 # Enable logging to handle uncaught exceptions
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -15,19 +14,6 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 token = '837770119:AAEmP97SuF0moJezC0jipSHz5Uy-CXqNNoI'
-
-# Create MongoDB instance: default host and port are localhost and 27017
-client = MongoClient()
-print('MongoDB instance is created!')
-
-# Create database
-db = client.homework_help
-print('homework_help database is created!')
-# Create user, tutor and question collection
-users_collection = db.users_collection
-tutor_collection = db.tutor_collection
-question_collection = db.question_collection
-print('user, tutor and question collections are created!')
 
 start_keyboard_markup = ReplyKeyboardMarkup([['/menu']],
                                             one_time_keyboard=True,
@@ -73,15 +59,19 @@ def select(update, context):
         update.message.reply_text(f"Please enter your question:")
         return ASK
     elif choice == "Answer question":
-        question = get_question_document(user_id)["question"]
+        context.chat_data["question_document"] = question_document = get_unanswered_question(
+        )
+        question = question_document["question"]
         update.message.reply_text(
             f"Here is a question for you:\n\n{question}\n\nPlease answer it:")
         return ANSWER
     elif choice == "Get answer":
-        update.message.reply_text(
-            f"You have asked the question:\n\n{get_question(user_id)}\n\n\
-                 Here is your answer:\n\n{get_answer(user_id)}\n\nIt was answered by: {get_answerer(user_id)}\n\n\
-                 Select / menu to display a menu of options", reply_markup=start_keyboard_markup)
+        answered_question = get_answered_question()
+        message = (f'You have asked the question: \n\n{answered_question["question"]}\n\n'
+                   f'Here is your answer: \n\n{answered_question["answer"]}\n\n'
+                   f'It was answered by: {answered_question["tutorname"]}\n\nSelect /menu to display a menu of options')
+        delete_question_document(answered_question["_id"])
+        update.message.reply_text(message, reply_markup=start_keyboard_markup)
         return ConversationHandler.END
 
 
@@ -93,22 +83,6 @@ def get_user_details(user):
 
     if not get_user_document(user_id):
         create_user_document(user_id, username)
-
-
-def create_user_document(user_id, username):
-    """Creates user document in user collection"""
-    user_document = {
-        "user_id": user_id,
-        "username": username,
-        "created_at": datetime.utcnow()
-    }
-    users_collection.insert_one(user_document)
-    logger.info(f"Inserted user into user collection: {user_document}")
-
-
-def get_user_document(user_id):
-    """Tries to get user document from user collection; if it fails returns None"""
-    return users_collection.find_one({"user_id": user_id})
 
 
 # TODO: Update help command
@@ -138,55 +112,16 @@ def answer(update, context):
     """Collects the answer (text format)"""
     user = update.message.from_user
     user_id = user.id
+    username = user.full_name
+    question_id = context.chat_data["question_document"]["_id"]
     answer = update.message.text
 
-    update_question_document(answer, user_id)
+    update_question_document(question_id, answer, user_id, username)
 
     update.message.reply_text(
         f"Your have answered: {answer}\n\nIt has been sent!\n\nSelect /menu to display a menu of options", reply_markup=start_keyboard_markup)
 
     return ConversationHandler.END
-
-
-def get_question(user_id):
-    return get_question_document(user_id)["question"]
-
-
-def get_answer(user_id):
-    return get_question_document(user_id)["answer"]
-
-
-def get_answerer(user_id):
-    return get_question_document(user_id)["tutorname"]
-
-
-def create_question_document(question, user_id, username):
-    """Creates question document in question collection"""
-    question_document = {
-        "question": question,
-        "answer": "",
-        "user_id": user_id,
-        "username": username,
-        "tutor_id": user_id,
-        "tutorname": username,
-        "is_answered": "false",
-        "created_at": datetime.utcnow()
-    }
-    question_collection.insert_one(question_document)
-    print(f"Inserted question into question collection: {question_document}")
-
-
-# TODO: seperate tutor_id and user_id
-def get_question_document(tutor_id):
-    """Creates question document in question collection"""
-    return question_collection.find_one({"tutor_id": tutor_id})
-
-
-def update_question_document(answer, tutor_id):
-    """Updates answer in question document in question collection"""
-    question_collection.update_one({"tutor_id": tutor_id}, {
-                                   "$set": {"answer": answer, }})
-    print(f"Updated answer in question collection with tutor_id: {tutor_id}")
 
 
 def error(update, context):
@@ -204,10 +139,9 @@ def main():
     conversation_handler = ConversationHandler(
         [CommandHandler('menu', menu)],
         {
-            SELECT: [MessageHandler(Filters.text, select)],
+            SELECT: [MessageHandler(Filters.text, select, pass_chat_data=True)],
             ASK: [MessageHandler(Filters.text, ask)],
-            ANSWER: [MessageHandler(Filters.text, answer)],
-            GET_ANSWER: [MessageHandler(Filters.text, get_answer)]
+            ANSWER: [MessageHandler(Filters.text, answer, pass_chat_data=True)]
         },
         [CommandHandler('help', help)],
     )
