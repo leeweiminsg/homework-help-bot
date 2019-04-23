@@ -61,16 +61,24 @@ def select(update, context):
     elif choice == "Answer question":
         context.chat_data["question_document"] = question_document = get_unanswered_question(
         )
-        question = question_document["question"]
-        update.message.reply_text(
-            f"Here is a question for you:\n\n{question}\n\nPlease answer it:")
-        return ANSWER
+        if question_document is None:
+            update.message.reply_text(
+                f"There are no questions available!", reply_markup=start_keyboard_markup)
+            return ConversationHandler.END
+        else:
+            question = question_document["question"]
+            update.message.reply_text(
+                f"Here is a question for you:\n\n{question}\n\nPlease answer it:")
+            return ANSWER
     elif choice == "Get answer":
         answered_question = get_answered_question()
-        message = (f'You have asked the question: \n\n{answered_question["question"]}\n\n'
-                   f'Here is your answer: \n\n{answered_question["answer"]}\n\n'
-                   f'It was answered by: {answered_question["tutorname"]}\n\nSelect /menu to display a menu of options')
-        delete_question_document(answered_question["_id"])
+        if answered_question is None:
+            message = f"There are no answered questions!"
+        else:
+            message = (f'You have asked the question: \n\n{answered_question["question"]}\n\n'
+                       f'Here is your answer: \n\n{answered_question["answer"]}\n\n'
+                       f'It was answered by: {answered_question["tutorname"]}\n\nSelect /menu to display a menu of options')
+            delete_question_document(answered_question["_id"])
         update.message.reply_text(message, reply_markup=start_keyboard_markup)
         return ConversationHandler.END
 
