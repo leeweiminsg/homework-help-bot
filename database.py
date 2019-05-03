@@ -69,7 +69,7 @@ def get_unanswered_question():
 
 
 def get_answered_question():
-    return question_collection.find_one({"is_deleted": False})
+    return question_collection.find_one({"is_answered": True, "is_deleted": False})
 
 
 def update_question_document(question_id, answer, tutor_id, tutorname):
