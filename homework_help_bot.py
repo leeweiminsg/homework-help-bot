@@ -21,7 +21,7 @@ start_keyboard_markup = ReplyKeyboardMarkup([['/menu']],
 
 
 def start(update, context):
-    """on /start command: Welcomes user, gets user details and displays start menu"""
+    """on /start command: Welcomes user, gets user details and displays start menu. All users are treated as normal users (is_tutor = false)"""
     user = update.message.from_user
     get_user_details(user)
 
@@ -30,14 +30,18 @@ def start(update, context):
 
 
 def menu(update, context):
-    """on /menu command: Display menu of options"""
+    """on /menu command: Check user role, and display menu of options accordingly"""
     # menu_keyboard = InlineKeyboardMarkup(
     #     [[InlineKeyboardButton("Ask a question", callback_data="ASK")],
     #      [InlineKeyboardButton("Answer question", callback_data="ANSWER")],
     #      [InlineKeyboardButton("Get answer", callback_data="GET_ANSWER")]]
     # )
+    user = update.message.from_user
 
-    menu_keyboard = [["Ask question"], ["Answer question"], ["Get answer"]]
+    if is_tutor(user):
+        menu_keyboard = [["Answer question"]]
+    else:
+        menu_keyboard = [["Ask question"], ["Get answer"]]
 
     menu_keyboard_markup = ReplyKeyboardMarkup(menu_keyboard,
                                                one_time_keyboard=True,
@@ -91,6 +95,14 @@ def get_user_details(user):
 
     if not get_user_document(user_id):
         create_user_document(user_id, username)
+
+
+def is_tutor(user):
+    """Checks is_tutor flag in User object"""
+    user_id = user.id
+    user_document = get_user_document(user_id)
+
+    return user_document["is_tutor"]
 
 
 # TODO: Update help command

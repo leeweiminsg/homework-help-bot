@@ -27,6 +27,8 @@ def create_user_document(user_id, username):
     user_document = {
         "user_id": user_id,
         "username": username,
+        "is_tutor": False,
+        "questions": [],
         "created_at": datetime.utcnow()
     }
     users_collection.insert_one(user_document)
