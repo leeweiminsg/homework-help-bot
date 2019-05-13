@@ -9,7 +9,8 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # Create MongoDB instance: default host and port are localhost and 27017
-client = MongoClient()
+client = MongoClient(
+    'mongodb+srv://admin:14&Chs8FecVro!sVrD12iP0$k@homework-help-cluster-dlv15.mongodb.net/test?retryWrites=true')
 print('MongoDB instance is created!')
 
 # Create database
