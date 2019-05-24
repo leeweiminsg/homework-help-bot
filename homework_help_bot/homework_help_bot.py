@@ -5,6 +5,8 @@ from telegram.ext import Updater, ConversationHandler, CommandHandler, MessageHa
 
 from database import get_user_document, create_user_document, get_question, get_unanswered_question, get_answered_question, create_question_document, update_question_document, delete_question_document
 
+import config
+
 # Conversation states
 SELECT, ASK, ANSWER = range(3)
 
@@ -12,8 +14,6 @@ SELECT, ASK, ANSWER = range(3)
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-token = '837770119:AAEmP97SuF0moJezC0jipSHz5Uy-CXqNNoI'
 
 start_keyboard_markup = ReplyKeyboardMarkup([['/menu']],
                                             one_time_keyboard=True,
@@ -31,17 +31,12 @@ def start(update, context):
 
 def menu(update, context):
     """on /menu command: Check user role, and display menu of options accordingly"""
-    # menu_keyboard = InlineKeyboardMarkup(
-    #     [[InlineKeyboardButton("Ask a question", callback_data="ASK")],
-    #      [InlineKeyboardButton("Answer question", callback_data="ANSWER")],
-    #      [InlineKeyboardButton("Get answer", callback_data="GET_ANSWER")]]
-    # )
     user = update.message.from_user
 
     if is_tutor(user):
         menu_keyboard = [["Answer question"]]
     else:
-        menu_keyboard = [["Ask question"], ["Get answer"]]
+        menu_keyboard = [["Ask question"]]
 
     menu_keyboard_markup = ReplyKeyboardMarkup(menu_keyboard,
                                                one_time_keyboard=True,
@@ -70,21 +65,10 @@ def select(update, context):
                 f"There are no questions available!", reply_markup=start_keyboard_markup)
             return ConversationHandler.END
         else:
-            question = question_document["question"]
+            question, asker_name = question_document["question"], question_document["username"]
             update.message.reply_text(
-                f"Here is a question for you:\n\n{question}\n\nPlease answer it:")
+                f"Here is a question for you by {asker_name}:\n\n{question}\n\nPlease answer it:")
             return ANSWER
-    elif choice == "Get answer":
-        answered_question = get_answered_question()
-        if answered_question is None:
-            message = f"There are no answered questions!"
-        else:
-            message = (f'You have asked the question: \n\n{answered_question["question"]}\n\n'
-                       f'Here is your answer: \n\n{answered_question["answer"]}\n\n'
-                       f'It was answered by: {answered_question["tutorname"]}\n\nSelect /menu to display a menu of options')
-            delete_question_document(answered_question["_id"])
-        update.message.reply_text(message, reply_markup=start_keyboard_markup)
-        return ConversationHandler.END
 
 
 def get_user_details(user):
@@ -112,7 +96,6 @@ def help(update, context):
         '/help was entered as a command!\nWhat do you need help with?')
 
 
-# NOTE: both username and tutorname are the same (for testing)
 def ask(update, context):
     """Sends a message when user asks a question (text format)."""
     user = update.message.from_user
@@ -120,7 +103,11 @@ def ask(update, context):
     username = user.full_name
     question = update.message.text
 
-    create_question_document(question, user_id, username)
+    unanswered_question = create_question_document(question, user_id, username)
+    question, asker_name = unanswered_question["question"], unanswered_question["username"]
+    message = f"Here is a question for you by {asker_name}:\n\n{question}\n\nPlease answer it:"
+    context.bot.send_message(config.TUTOR_ID, message,
+                             reply_markup=start_keyboard_markup)
 
     update.message.reply_text(
         f"You have asked the question: {question}\n\nIt has been sent!\n\nSelect /menu to display a menu of options", reply_markup=start_keyboard_markup)
@@ -136,7 +123,15 @@ def answer(update, context):
     question_id = context.chat_data["question_document"]["_id"]
     answer = update.message.text
 
-    update_question_document(question_id, answer, user_id, username)
+    answered_question = update_question_document(
+        question_id, answer, user_id, username)
+
+    message = (f'You have asked the question: \n\n{answered_question["question"]}\n\n'
+               f'Here is your answer: \n\n{answered_question["answer"]}\n\n'
+               f'It was answered by: {answered_question["tutorname"]}\n\nSelect /menu to display a menu of options')
+    context.bot.send_message(
+        answered_question["user_id"], message, reply_markup=start_keyboard_markup)
+    delete_question_document(answered_question["_id"])
 
     update.message.reply_text(
         f"Your have answered: {answer}\n\nIt has been sent!\n\nSelect /menu to display a menu of options", reply_markup=start_keyboard_markup)
@@ -150,7 +145,7 @@ def error(update, context):
 
 
 def main():
-    updater = Updater(token=token, use_context=True)
+    updater = Updater(token=config.TOKEN, use_context=True)
 
     # Get the dispatcher to register handlers
     dp = updater.dispatcher

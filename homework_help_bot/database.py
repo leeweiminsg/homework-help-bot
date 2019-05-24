@@ -2,6 +2,9 @@ from datetime import datetime
 import logging
 
 from pymongo import MongoClient
+from pymongo.collection import ReturnDocument
+
+import config
 
 # Enable logging to handle uncaught exceptions
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -9,8 +12,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # Create MongoDB instance: default host and port are localhost and 27017
-client = MongoClient(
-    'mongodb+srv://admin:14&Chs8FecVro!sVrD12iP0$k@homework-help-cluster-dlv15.mongodb.net/test?retryWrites=true')
+client = MongoClient(config.DB_URL)
 print('MongoDB instance is created!')
 
 # Create database
@@ -56,9 +58,7 @@ def create_question_document(question, user_id, username):
         "created_at": datetime.utcnow(),
         "deleted_at": None
     }
-    question_collection.insert_one(question_document)
-    logger.info(
-        f"Inserted question into question collection: {question_document}")
+    return question_collection.insert_one(question_document)
 
 
 def get_question(user_id):
@@ -69,14 +69,13 @@ def get_unanswered_question():
     return question_collection.find_one({"is_answered": False})
 
 
-def get_answered_question():
-    return question_collection.find_one({"is_answered": True, "is_deleted": False})
+def get_answered_question(user_id):
+    return question_collection.find_one({"user_id": user_id, "is_answered": True, "is_deleted": False})
 
 
 def update_question_document(question_id, answer, tutor_id, tutorname):
-    question_collection.update_one({"_id": question_id}, {
-                                   "$set": {"answer": answer, "tutor_id": tutor_id, "tutorname": tutorname, "is_answered": True, "answered_at": datetime.utcnow()}})
-    print(f"Updated answer in question collection with tutor_id: {tutor_id}")
+    return question_collection.find_one_and_update({"_id": question_id}, {
+        "$set": {"answer": answer, "tutor_id": tutor_id, "tutorname": tutorname, "is_answered": True, "answered_at": datetime.utcnow()}}, return_document=ReturnDocument.AFTER)
 
 
 def delete_question_document(question_id):
