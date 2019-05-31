@@ -1,3 +1,7 @@
 {
-    "python.pythonPath": "C:\\Users\\Lee Wei Min\\.virtualenvs\\homework-help-bot-mY4yK7WU\\Scripts\\python.exe"
+    "python.venvPath": "C:\\Users\\Lee Wei Min\\.virtualenvs\\",
+    "python.pythonPath": "C:\\Users\\Lee Wei Min\\.virtualenvs\\homework_help_bot-7JCcRsEC\\Scripts\\python.exe",
+    "python.jediEnabled": true,
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true
 }

@@ -1,0 +1,13 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+
+[packages]
+pymongo = "*"
+python-telegram-bot = "==12.0.0b1"
+
+[requires]
+python_version = "3.7"

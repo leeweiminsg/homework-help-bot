@@ -3,6 +3,7 @@ import logging
 
 from pymongo import MongoClient
 from pymongo.collection import ReturnDocument
+from bson.binary import Binary
 
 import config
 
@@ -47,7 +48,9 @@ def create_question_document(question, user_id, username):
     """Creates question document in question collection"""
     question_document = {
         "question": question,
+        "question_photo": None,
         "answer": None,
+        "answer_photo": None,
         "user_id": user_id,
         "username": username,
         "tutor_id": None,
@@ -58,10 +61,15 @@ def create_question_document(question, user_id, username):
         "created_at": datetime.utcnow(),
         "deleted_at": None
     }
+
     return question_collection.insert_one(question_document)
 
 
-def get_question(user_id):
+def get_question(id):
+    return question_collection.find_one({"_id": id})
+
+
+def get_question_by_user_id(user_id):
     return question_collection.find_one({"user_id": user_id})
 
 
@@ -76,6 +84,18 @@ def get_answered_question(user_id):
 def update_question_document(question_id, answer, tutor_id, tutorname):
     return question_collection.find_one_and_update({"_id": question_id}, {
         "$set": {"answer": answer, "tutor_id": tutor_id, "tutorname": tutorname, "is_answered": True, "answered_at": datetime.utcnow()}}, return_document=ReturnDocument.AFTER)
+
+
+def set_question_photo(question_id, photo_url):
+    with open(photo_url, "rb") as f:
+        encoded_photo = Binary(f.read())
+    return question_collection.find_one_and_update({"_id": question_id}, {"$set": {"question_photo": encoded_photo}})
+
+
+def set_answer_photo(question_id, photo_url):
+    with open(photo_url, "rb") as f:
+        encoded_photo = Binary(f.read())
+    return question_collection.find_one_and_update({"_id": question_id}, {"$set": {"answer_photo": encoded_photo}})
 
 
 def delete_question_document(question_id):
