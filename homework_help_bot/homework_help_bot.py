@@ -100,12 +100,14 @@ def ask_text(update, context):
 def ask_photo(update, context):
     if not update.message.text:
         photo_file = update.message.photo[-1].get_file()
-        photo_file_url = photo_file.download("homework_photo.jpg")
+        photo_file_url = photo_file.download(
+            f"{context.user_data['full_name']}_homework_photo.jpg")
         database.set_question_photo(
             context.chat_data["unanswered_question"]["_id"], photo_file_url)
 
         context.bot.send_photo(
-            config.TUTOR_ID, open("homework_photo.jpg", "rb"))
+            config.TUTOR_ID, open(f"{context.user_data['full_name']}_homework_photo.jpg", "rb"))
+        os.remove(f"{context.user_data['full_name']}_homework_photo.jpg")
 
     update.message.reply_text(
         f"Your question was sent!\n\nSelect /menu to display a menu of options", reply_markup=start_keyboard_markup)
@@ -160,12 +162,13 @@ def answer_photo(update, context):
 
     if not update.message.text:
         photo_file = update.message.photo[-1].get_file()
-        photo_file_url = photo_file.download("answer_photo.jpg")
+        photo_file_url = photo_file.download(
+            f"{context.user_data['full_name']}_answer_photo.jpg")
         database.set_answer_photo(
             answered_question["_id"], photo_file_url)
 
         context.bot.send_photo(answered_question["user_id"], open(
-            "answer_photo.jpg", "rb"))
+            f"{context.user_data['full_name']}_answer_photo.jpg", "rb"))
 
     update.message.reply_text(
         f"Your answer was sent!\n\nSelect /menu to display a menu of options", reply_markup=start_keyboard_markup)
@@ -173,6 +176,7 @@ def answer_photo(update, context):
     message = (f'You have asked the question: \n\n{answered_question["question"]}\n\n'
                f'Here is your answer: \n\n{answered_question["answer"]}\n\n'
                f'It was answered by: {answered_question["tutorname"]}\n\nSelect /menu to display a menu of options')
+    os.remove(f"{context.user_data['full_name']}_answer_photo.jpg")
     context.bot.send_message(
         answered_question["user_id"], message, reply_markup=start_keyboard_markup)
 
