@@ -123,17 +123,20 @@ def ask_photo(update, context):
 
 def answer(update, context):
     context.chat_data["question_document"] = question_document = get_unanswered_question()
+
     if not question_document:
         update.message.reply_text(
             f"There are no questions available!", reply_markup=start_keyboard_markup)
 
         return ConversationHandler.END
     else:
-        with open(f"{question_document['username']}_question_photo.jpg", "wb") as file:
-            file.write(question_document['question_photo'])
-        update.message.reply_photo(
-            open(f"{question_document['username']}_question_photo.jpg", "rb"))
-        os.remove(f"{question_document['username']}_question_photo.jpg")
+        if question_document["question_photo"]:
+            with open(f"{question_document['username']}_question_photo.jpg", "wb") as file:
+                file.write(question_document['question_photo'])
+            update.message.reply_photo(
+                open(f"{question_document['username']}_question_photo.jpg", "rb"))
+            os.remove(f"{question_document['username']}_question_photo.jpg")
+
         update.message.reply_text(
             f"Here is a question for you by {question_document['username']}:\n\n{question_document['question']}\n\nPlease answer it:")
 
@@ -169,6 +172,7 @@ def answer_photo(update, context):
 
         context.bot.send_photo(answered_question["user_id"], open(
             f"{context.user_data['full_name']}_answer_photo.jpg", "rb"))
+        os.remove(f"{context.user_data['full_name']}_answer_photo.jpg")
 
     update.message.reply_text(
         f"Your answer was sent!\n\nSelect /menu to display a menu of options", reply_markup=start_keyboard_markup)
@@ -176,7 +180,7 @@ def answer_photo(update, context):
     message = (f'You have asked the question: \n\n{answered_question["question"]}\n\n'
                f'Here is your answer: \n\n{answered_question["answer"]}\n\n'
                f'It was answered by: {answered_question["tutorname"]}\n\nSelect /menu to display a menu of options')
-    os.remove(f"{context.user_data['full_name']}_answer_photo.jpg")
+
     context.bot.send_message(
         answered_question["user_id"], message, reply_markup=start_keyboard_markup)
 
