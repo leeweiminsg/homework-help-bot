@@ -2,6 +2,8 @@
 
 A telegram bot to facilitate communication between tutors and their students!
 
+Developed using Python (python-telegram-bot package) and MongoDB.
+
 **Link:** https://t.me/sgHomeworkHelp_Bot
 
 ## Screenshots
